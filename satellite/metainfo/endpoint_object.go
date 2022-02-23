@@ -139,6 +139,11 @@ func (endpoint *Endpoint) BeginObject(ctx context.Context, req *pb.ObjectBeginRe
 		expiresAt = &req.ExpiresAt
 	}
 
+	var nonce []byte
+	if !req.EncryptedMetadataNonce.IsZero() {
+		nonce = req.EncryptedMetadataNonce[:]
+	}
+
 	object, err := endpoint.metabase.BeginObjectExactVersion(ctx, metabase.BeginObjectExactVersion{
 		ObjectStream: metabase.ObjectStream{
 			ProjectID:  keyInfo.ProjectID,
@@ -149,6 +154,10 @@ func (endpoint *Endpoint) BeginObject(ctx context.Context, req *pb.ObjectBeginRe
 		},
 		ExpiresAt:  expiresAt,
 		Encryption: encryptionParameters,
+
+		EncryptedMetadata:             req.EncryptedMetadata,
+		EncryptedMetadataEncryptedKey: req.EncryptedMetadataEncryptedKey,
+		EncryptedMetadataNonce:        nonce,
 	})
 	if err != nil {
 		return nil, endpoint.convertMetabaseErr(err)
@@ -165,11 +174,14 @@ func (endpoint *Endpoint) BeginObject(ctx context.Context, req *pb.ObjectBeginRe
 		EncryptionParameters: req.EncryptionParameters,
 		Placement:            int32(placement),
 	})
+
+	endpoint.log.Warn("begin", zap.Int("metadata len", len(req.EncryptedMetadata)), zap.Int("metadata len", len(req.EncryptedMetadataEncryptedKey)),
+		zap.Int("metadata len", len(nonce)))
+
 	if err != nil {
 		endpoint.log.Error("internal", zap.Error(err))
 		return nil, rpcstatus.Error(rpcstatus.Internal, err.Error())
 	}
-
 	endpoint.log.Info("Object Upload", zap.Stringer("Project ID", keyInfo.ProjectID), zap.String("operation", "put"), zap.String("type", "object"))
 	mon.Meter("req_put_object").Mark(1)
 
@@ -235,6 +247,10 @@ func (endpoint *Endpoint) CommitObject(ctx context.Context, req *pb.ObjectCommit
 			Version:    metabase.DefaultVersion,
 		},
 		Encryption: encryption,
+
+		EncryptedETag:             req.EncryptedEtag,
+		EncryptedETagEncryptedKey: req.EncryptedEtagEncryptedKey,
+		EncryptedETagNonce:        req.EncryptedEtagNonce[:],
 	}
 	// uplink can send empty metadata with not empty key/nonce
 	// we need to fix it on uplink side but that part will be
@@ -257,6 +273,8 @@ func (endpoint *Endpoint) CommitObject(ctx context.Context, req *pb.ObjectCommit
 	if err != nil {
 		return nil, endpoint.convertMetabaseErr(err)
 	}
+
+	endpoint.log.Info("Commit Object", zap.Stringer("Project ID", keyInfo.ProjectID))
 
 	return &pb.ObjectCommitResponse{}, nil
 }
@@ -1174,6 +1192,14 @@ func (endpoint *Endpoint) objectToProto(ctx context.Context, object metabase.Obj
 		return nil, err
 	}
 
+	var etagNonce storj.Nonce
+	if len(object.EncryptedETag) != 0 {
+		etagNonce, err = storj.NonceFromBytes(object.EncryptedETagNonce)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	result := &pb.Object{
 		Bucket:        []byte(object.BucketName),
 		EncryptedPath: []byte(object.ObjectKey),
@@ -1193,6 +1219,10 @@ func (endpoint *Endpoint) objectToProto(ctx context.Context, object metabase.Obj
 			BlockSize:   int64(object.Encryption.BlockSize),
 		},
 
+		EncryptedEtag:             object.EncryptedETag,
+		EncryptedEtagEncryptedKey: object.EncryptedETagEncryptedKey,
+		EncryptedEtagNonce:        etagNonce,
+
 		RedundancyScheme: rs,
 	}
 
@@ -1208,6 +1238,14 @@ func (endpoint *Endpoint) objectEntryToProtoListItem(ctx context.Context, bucket
 		expires = *entry.ExpiresAt
 	}
 
+	var etagNonce storj.Nonce
+	if len(entry.EncryptedETag) != 0 {
+		etagNonce, err = storj.NonceFromBytes(entry.EncryptedETagNonce)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	item = &pb.ObjectListItem{
 		EncryptedPath: []byte(entry.ObjectKey),
 		Version:       int32(entry.Version), // TODO incompatible types
@@ -1215,6 +1253,10 @@ func (endpoint *Endpoint) objectEntryToProtoListItem(ctx context.Context, bucket
 		ExpiresAt:     expires,
 		CreatedAt:     entry.CreatedAt,
 		PlainSize:     entry.TotalPlainSize,
+
+		EncryptedEtag:             entry.EncryptedETag,
+		EncryptedEtagEncryptedKey: entry.EncryptedETagEncryptedKey,
+		EncryptedEtagNonce:        etagNonce,
 	}
 
 	if includeMetadata {

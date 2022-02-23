@@ -266,7 +266,8 @@ func doNextQueryAllVersionsWithoutStatus(ctx context.Context, it *objectsIterato
 				created_at, expires_at,
 				segment_count,
 				total_plain_size, total_encrypted_size, fixed_segment_size,
-				encrypted_metadata_nonce, encrypted_metadata, encrypted_metadata_encrypted_key
+				encrypted_metadata_nonce, encrypted_metadata, encrypted_metadata_encrypted_key,
+				encrypted_etag_nonce, encrypted_etag, encrypted_etag_encrypted_key
 			FROM objects
 			WHERE
 				project_id = $1 AND bucket_name = $2
@@ -287,7 +288,8 @@ func doNextQueryAllVersionsWithoutStatus(ctx context.Context, it *objectsIterato
 			created_at, expires_at,
 			segment_count,
 			total_plain_size, total_encrypted_size, fixed_segment_size,
-			encrypted_metadata_nonce, encrypted_metadata, encrypted_metadata_encrypted_key
+			encrypted_metadata_nonce, encrypted_metadata, encrypted_metadata_encrypted_key,
+			encrypted_etag_nonce, encrypted_etag, encrypted_etag_encrypted_key
 		FROM objects
 		WHERE
 			project_id = $1 AND bucket_name = $2
@@ -329,7 +331,11 @@ func doNextQueryAllVersionsWithStatus(ctx context.Context, it *objectsIterator) 
 		querySelectFields += `
 			,encrypted_metadata_nonce
 			,encrypted_metadata
-			,encrypted_metadata_encrypted_key`
+			,encrypted_metadata_encrypted_key
+			,encrypted_etag_nonce
+			,encrypted_etag
+			,encrypted_etag_encrypted_key
+			`
 	}
 
 	cursorCompare := ">"
@@ -394,7 +400,8 @@ func doNextQueryStreamsByKey(ctx context.Context, it *objectsIterator) (_ tagsql
 				created_at, expires_at,
 				segment_count,
 				total_plain_size, total_encrypted_size, fixed_segment_size,
-				encrypted_metadata_nonce, encrypted_metadata, encrypted_metadata_encrypted_key
+				encrypted_metadata_nonce, encrypted_metadata, encrypted_metadata_encrypted_key,
+				encrypted_etag_nonce, encrypted_etag, encrypted_etag_encrypted_key
 			FROM objects
 			WHERE
 				project_id = $1 AND bucket_name = $2
@@ -438,6 +445,10 @@ func (it *objectsIterator) scanItem(item *ObjectEntry) (err error) {
 			&item.EncryptedMetadataNonce,
 			&item.EncryptedMetadata,
 			&item.EncryptedMetadataEncryptedKey,
+
+			&item.EncryptedETagNonce,
+			&item.EncryptedETag,
+			&item.EncryptedETagEncryptedKey,
 		)
 	}
 

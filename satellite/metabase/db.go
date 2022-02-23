@@ -348,6 +348,16 @@ func (db *DB) PostgresMigration() *migrate.Migration {
 					`CREATE INDEX ON segment_copies (ancestor_stream_id)`,
 				},
 			},
+			{
+				DB:          &db.db,
+				Description: "test",
+				Version:     16,
+				Action: migrate.SQL{
+					`ALTER TABLE objects ADD COLUMN encrypted_etag BYTEA default NULL`,
+					`ALTER TABLE objects ADD COLUMN encrypted_etag_nonce BYTEA default NULL`,
+					`ALTER TABLE objects ADD COLUMN encrypted_etag_encrypted_key BYTEA default NULL`,
+				},
+			},
 		},
 	}
 }

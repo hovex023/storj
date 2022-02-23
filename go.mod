@@ -55,6 +55,8 @@ require (
 	storj.io/uplink v1.7.2-0.20220216123701-9e00d72711dc
 )
 
+replace storj.io/common => ../common
+
 require (
 	cloud.google.com/go v0.52.0 // indirect
 	github.com/VividCortex/ewma v1.1.1 // indirect

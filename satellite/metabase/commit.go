@@ -7,6 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	pgxerrcode "github.com/jackc/pgerrcode"
@@ -466,6 +467,10 @@ type CommitObject struct {
 	EncryptedMetadata             []byte // optional
 	EncryptedMetadataNonce        []byte // optional
 	EncryptedMetadataEncryptedKey []byte // optional
+
+	EncryptedETag             []byte // optional
+	EncryptedETagNonce        []byte // optional
+	EncryptedETagEncryptedKey []byte // optional
 }
 
 // Verify verifies reqest fields.
@@ -537,7 +542,13 @@ func (db *DB) CommitObject(ctx context.Context, opts CommitObject) (object Objec
 			totalPlainSize,
 			totalEncryptedSize,
 			fixedSegmentSize,
-			encryptionParameters{&opts.Encryption}}
+			encryptionParameters{&opts.Encryption},
+			opts.EncryptedETagNonce,
+			opts.EncryptedETag,
+			opts.EncryptedETagEncryptedKey,
+		}
+
+		fmt.Println("ETAG", opts.EncryptedETagNonce)
 
 		metadataColumns := ""
 		if len(opts.EncryptedMetadata) != 0 {
@@ -547,9 +558,9 @@ func (db *DB) CommitObject(ctx context.Context, opts CommitObject) (object Objec
 				opts.EncryptedMetadataEncryptedKey,
 			)
 			metadataColumns = `,
-				encrypted_metadata_nonce         = $11,
-				encrypted_metadata               = $12,
-				encrypted_metadata_encrypted_key = $13
+				encrypted_metadata_nonce         = $14,
+				encrypted_metadata               = $15,
+				encrypted_metadata_encrypted_key = $16
 			`
 		}
 
@@ -568,7 +579,10 @@ func (db *DB) CommitObject(ctx context.Context, opts CommitObject) (object Objec
 					WHEN objects.encryption = 0 AND $10 <> 0 THEN $10
 					WHEN objects.encryption = 0 AND $10 = 0 THEN NULL
 					ELSE objects.encryption
-				END
+				END,
+				encrypted_etag_nonce         = $11,
+				encrypted_etag               = $12,
+				encrypted_etag_encrypted_key = $13
 			    `+metadataColumns+`
 			WHERE
 				project_id   = $1 AND

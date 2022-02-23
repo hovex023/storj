@@ -27,6 +27,10 @@ type RawObject struct {
 	EncryptedMetadata             []byte
 	EncryptedMetadataEncryptedKey []byte
 
+	EncryptedETagNonce        []byte
+	EncryptedETag             []byte
+	EncryptedETagEncryptedKey []byte
+
 	// TotalPlainSize is 0 for a migrated object.
 	TotalPlainSize     int64
 	TotalEncryptedSize int64
@@ -127,6 +131,7 @@ func (db *DB) testingGetAllObjects(ctx context.Context) (_ []RawObject, err erro
 			created_at, expires_at,
 			status, segment_count,
 			encrypted_metadata_nonce, encrypted_metadata, encrypted_metadata_encrypted_key,
+			encrypted_etag_nonce, encrypted_etag, encrypted_etag_encrypted_key,
 			total_plain_size, total_encrypted_size, fixed_segment_size,
 			encryption,
 			zombie_deletion_deadline
@@ -155,6 +160,10 @@ func (db *DB) testingGetAllObjects(ctx context.Context) (_ []RawObject, err erro
 			&obj.EncryptedMetadataNonce,
 			&obj.EncryptedMetadata,
 			&obj.EncryptedMetadataEncryptedKey,
+
+			&obj.EncryptedETagNonce,
+			&obj.EncryptedETag,
+			&obj.EncryptedETagEncryptedKey,
 
 			&obj.TotalPlainSize,
 			&obj.TotalEncryptedSize,
