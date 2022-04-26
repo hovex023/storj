@@ -15,8 +15,9 @@ import (
 )
 
 func main() {
+	// definition for REST API
 	a := &apigen.API{
-		Version:     "v1",
+		Version:     "v0",
 		Description: "",
 		PackageName: "consoleapi",
 	}
@@ -53,6 +54,27 @@ func main() {
 				apigen.NewParam("projectID", uuid.UUID{}),
 				apigen.NewParam("since", time.Time{}),
 				apigen.NewParam("before", time.Time{}),
+			},
+		})
+
+		g.Put("/create", &apigen.Endpoint{
+			Name:        "Create new Project",
+			Description: "Creates new Project with given info",
+			MethodName:  "GenCreateProject",
+			Response:    &console.Project{},
+			Params: []apigen.Param{
+				apigen.NewParam("projectInfo", console.ProjectInfo{}),
+			},
+		})
+
+		g.Patch("/update", &apigen.Endpoint{
+			Name:        "Update Project",
+			Description: "Updates project with given info",
+			MethodName:  "GenUpdateProject",
+			Response:    &console.Project{},
+			Params: []apigen.Param{
+				apigen.NewParam("id", uuid.UUID{}),
+				apigen.NewParam("projectInfo", console.ProjectInfo{}),
 			},
 		})
 	}
